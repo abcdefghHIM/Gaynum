@@ -1,4 +1,4 @@
-# 基于模型的质数生成器
+# 基于模型的指数生成器
 
 ```python
 def collate_fn(batch):
