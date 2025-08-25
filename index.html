@@ -8,6 +8,8 @@
     
     <script src="https://unpkg.com/pinyin@4.0.0/lib/umd/pinyin.js"></script>
     <script src="https://unpkg.com/wanakana@5.3.1/wanakana.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -108,7 +110,7 @@
         <!-- Header -->
         <div class="text-center">
             <h1 class="text-3xl font-bold rainbow-text">名字Gay指数计算器</h1>
-            <p class="text-gray-400 mt-2">输入一个名字，看看“科学”的计算结果！</p>
+            <p class="text-gray-400 mt-2">输入一个名字，看看人工智能的计算结果！</p>
             <p class="text-xs text-gray-500 mt-1">（纯属娱乐，请勿当真）</p>
         </div>
 
@@ -140,6 +142,39 @@
             GitHub: Akanyi/Gaynum
         </a>
     </div>
+
+    
+    <script type="module">
+        import { AutoTokenizer } from "https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js";
+
+        async function main() {
+            const session = await ort.InferenceSession.create("gay_model.onnx", {
+                executionProviders: ["wasm"]
+            });
+
+            const tokenizer = await AutoTokenizer.from_pretrained("bert-base-chinese");
+
+            window.matrixCalculation=async function(name){
+                const text = name;
+
+                const { input_ids } = await tokenizer(text);
+
+                const xTensor = new ort.Tensor("int64", input_ids.data, input_ids.dims);
+
+                const maskData = Array.from(input_ids.data).map(v => v === 0n ? 1 : 0);
+                const maskTensor = new ort.Tensor("bool", new Uint8Array(maskData), input_ids.dims)
+
+                const results = await session.run({
+                    input_ids: xTensor,
+                    key_padding_mask: maskTensor
+                });
+
+                return Math.round(results.score.data[0]*100);
+            }
+        }
+
+        main();
+    </script>
 
     <script>
         window.onload = function() {
@@ -497,10 +532,8 @@
                 
                 clearInterval(typingInterval); // 如果上次的打字机还在运行，则清除
 
-                setTimeout(() => {
-                    const normalizedParts = normalizeName(trimmedName); // 使用去除空格后的名字进行计算
-                    const numericValues = getNumericValues(normalizedParts);
-                    const finalPercentage = matrixCalculation(numericValues, trimmedName); // 使用去除空格后的名字进行计算
+                setTimeout(async () => {
+                    const finalPercentage = await window.matrixCalculation(trimmedName); // 使用去除空格后的名字进行计算
                     // displayResult 现在会根据 name 和 percentage 实时生成 message
                     displayResult(trimmedName, finalPercentage); // 传递去除空格后的名字
                     btnText.classList.remove('hidden');
